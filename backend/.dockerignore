@@ -1,0 +1,41 @@
+# .dockerignore — keeps the build context lean and fast
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Django
+db.sqlite3
+*.sqlite3
+staticfiles/
+media/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Dev tooling
+.git/
+.gitignore
+.github/
+.vscode/
+.idea/
+*.md
+
+# Tests
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Docker (don't include docker files inside the build — circular)
+Dockerfile*
+docker-compose*
+.dockerignore

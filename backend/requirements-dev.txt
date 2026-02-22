@@ -1,0 +1,4 @@
+# Development & CI only — not installed in the Docker runtime image
+ruff==0.1.9
+pytest==7.4.3
+pytest-django==4.7.0

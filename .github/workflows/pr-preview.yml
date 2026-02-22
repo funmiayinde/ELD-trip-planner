@@ -1,0 +1,95 @@
+name: PR Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches: [main]
+
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Frontend preview
+    runs-on: ubuntu-latest
+    if: github.event.action != 'closed'
+
+    permissions:
+      pull-requests: write   # to post the comment with preview URL
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment (preview)
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build preview
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          # Point preview frontend at the production backend.
+          # If you have a staging backend, use that URL here instead.
+          REACT_APP_API_URL: ${{ vars.BACKEND_URL }}
+
+      - name: Deploy preview
+        id: deploy
+        run: |
+          PREVIEW_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const previewUrl = '${{ steps.deploy.outputs.url }}';
+            const sha        = context.payload.pull_request.head.sha.slice(0, 7);
+
+            // Delete any previous preview comment from this bot to avoid spam
+            const comments = await github.rest.issues.listComments({
+              owner:      context.repo.owner,
+              repo:       context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+            });
+
+            for (const comment of comments.data) {
+              if (comment.user.login === 'github-actions[bot]' &&
+                  comment.body.includes('🚀 Preview deployed')) {
+                await github.rest.issues.deleteComment({
+                  owner:      context.repo.owner,
+                  repo:       context.repo.repo,
+                  comment_id: comment.id,
+                });
+              }
+            }
+
+            // Post fresh comment
+            await github.rest.issues.createComment({
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: [
+                `🚀 **Preview deployed** for \`${sha}\``,
+                ``,
+                `| | |`,
+                `|---|---|`,
+                `| **Frontend** | ${previewUrl} |`,
+                `| **Backend**  | ${{ vars.BACKEND_URL }} |`,
+                ``,
+                `_Preview will be automatically cleaned up when this PR is merged or closed._`,
+              ].join('\n'),
+            });

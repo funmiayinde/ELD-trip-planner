@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+
+  db:
+    restart: always
+    environment:
+      POSTGRES_DB:       ${POSTGRES_DB}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+  backend:
+    restart: always
+    volumes: []            # no source mounts in prod — image is the source of truth
+    environment:
+      SECRET_KEY:          ${SECRET_KEY}
+      DEBUG:               "False"
+      ALLOWED_HOSTS:       ${ALLOWED_HOSTS}
+      DATABASE_URL:        ${DATABASE_URL}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      GUNICORN_WORKERS:    "4"
+      GUNICORN_LOG_LEVEL:  "warning"
+
